@@ -2,18 +2,19 @@ let eyeRadius = 150;
 let eyeCenterX, eyeCenterY;
 let irisRadius = 50;
 let chaosFactor = 0;
-let maxChaosFactor = 1;
+let maxChaosFactor = 2;
 let pupilCircles = [];
 let splitThreshold = 15;
 let splitSpeed = 0.01;
 let maxMatters = 200;
 let routerWidth, routerHeight, routerX, routerY;
 let antennas = [];
-let minPupilSize = 5;
-let maxPupilSize = 25;
-let maxPupilCount = 10;
+let minPupilSize = 3;
+let maxPupilSize = 20;
+let maxPupilCount = 20;
 const WIRE_COUNT = 50;
 const WIRE_COLOR = '#4a4a4a';
+let isRouterOn = false; 
 function setup() {
   let canvas = createCanvas(800, 500);
   canvas.parent('canvas-container');
@@ -27,6 +28,7 @@ function setup() {
   routerY = (height - routerHeight) / 2;
   createAntennas();
   pupilCircles.push(new PupilCircle(eyeCenterX, eyeCenterY, 25, 0, 0));
+  updateAntennaConnections();
 }
 function draw() {
   background(220); 
@@ -36,6 +38,7 @@ function draw() {
   drawRouter();
   drawEye();
   drawAntennas();
+  drawRouterSwitch();
 }
 function drawRouter() {
   push();
@@ -49,44 +52,54 @@ function drawRouter() {
     let ledSize = 10;
     ellipse(routerX + 30 + i * 30, routerY + 20, ledSize);
   }
+  drawRouterSwitch();
   pop();
 }
 function drawEye() {
   push();
-  fill(250, 250, 255);
-  stroke(200, 200, 220);
-  strokeWeight(2);
-  ellipse(eyeCenterX, eyeCenterY, eyeRadius * 2, eyeRadius);
   let maxOffset = eyeRadius - irisRadius;
   let irisOffsetX = map(noise(frameCount * 0.01, 0), 0, 1, -maxOffset, maxOffset) * chaosFactor;
   let irisOffsetY = map(noise(frameCount * 0.01, 100), 0, 1, -maxOffset/2, maxOffset/2) * chaosFactor;
   let irisX = eyeCenterX + irisOffsetX;
   let irisY = eyeCenterY + irisOffsetY;
-  drawIris(irisX, irisY, irisRadius);
+  fill(220, 220, 230);
+  stroke(100, 100, 120);
+  strokeWeight(3);
+  ellipse(eyeCenterX, eyeCenterY, eyeRadius * 2, eyeRadius * 1.5);
+  stroke(100, 100, 120);
+  strokeWeight(1);
+  fill(180);
+  for (let i = 0; i < 8; i++) {
+    let angle = i * TWO_PI / 8;
+    let screwX = eyeCenterX + cos(angle) * (eyeRadius * 0.9);
+    let screwY = eyeCenterY + sin(angle) * (eyeRadius * 0.7);
+    ellipse(screwX, screwY, 10, 10);
+    line(screwX - 3, screwY, screwX + 3, screwY);
+    line(screwX, screwY - 3, screwX, screwY + 3);
+  }
+  noFill();
+  for (let r = eyeRadius * 0.2; r < eyeRadius; r += eyeRadius * 0.1) {
+    ellipse(eyeCenterX, eyeCenterY, r * 2, r * 1.5);
+  }
+  fill(50, 60, 70);
+  noStroke();
+  ellipse(irisX, irisY, irisRadius * 2);
+  stroke(100, 120, 140, 150);
+  strokeWeight(1);
+  for (let i = 0; i < 360; i += 15) {
+    let angle = radians(i);
+    line(irisX + cos(angle) * irisRadius * 0.5, irisY + sin(angle) * irisRadius * 0.5,
+         irisX + cos(angle) * irisRadius, irisY + sin(angle) * irisRadius);
+  }
+  noFill();
+  stroke(150, 170, 190);
+  strokeWeight(2);
+  ellipse(irisX, irisY, irisRadius * 2);
   pupilCircles.forEach(pc => { 
     pc.update(irisOffsetX, irisOffsetY); 
     pc.display(); 
   });
   pop();
-}
-function drawIris(x, y, radius) {
-  let irisColor = color(100, 150, 200);
-  noStroke();
-  fill(irisColor);
-  ellipse(x, y, radius * 2);
-  for (let i = 0; i < 360; i += 10) {
-    let angle = radians(i);
-    let lineLength = random(radius * 0.5, radius * 0.9);
-    stroke(red(irisColor) - 20, green(irisColor) - 20, blue(irisColor) - 20, 100);
-    strokeWeight(1);
-    line(x + cos(angle) * radius * 0.5, y + sin(angle) * radius * 0.5,
-         x + cos(angle) * lineLength, y + sin(angle) * lineLength);
-  }
-  noFill();
-  for (let r = radius; r > radius * 0.6; r -= 3) {
-    stroke(0, 0, 0, 5);
-    ellipse(x, y, r * 2);
-  }
 }
 function createAntennas() {
   antennas = []; 
@@ -125,12 +138,33 @@ function drawAntennas(){
     }
   }
 }
-function mousePressed(){
+function mousePressed() {
+  let switchX = routerX + routerWidth - 50;
+  let switchY = routerY + 20;
+  let switchWidth = 30;
+  let switchHeight = 15;
+  if (mouseX > switchX && mouseX < switchX + switchWidth &&
+      mouseY > switchY && mouseY < switchY + switchHeight) {
+    isRouterOn = !isRouterOn;
+    updateAntennaConnections();
+    return; 
+  }
   antennas.forEach(a => {
-    if(a.isPointInside(mouseX, mouseY)){
+    if (a.isPointInside(mouseX, mouseY)) {
       a.attach();
+      updateChaosFactor(); 
     }
   });
+}
+function updateAntennaConnections() {
+  antennas.forEach(antenna => {
+    if (isRouterOn && !antenna.isAttached) {
+      antenna.attach();
+    } else if (!isRouterOn && antenna.isAttached) {
+      antenna.attach();
+    }
+  });
+  updateChaosFactor();
 }
 class PupilCircle {
   constructor(x, y, r, angle, distance) {
@@ -139,14 +173,19 @@ class PupilCircle {
     this.r = r;
     this.angle = angle;
     this.distance = distance;
-    this.baseSpeed = random(0.01, 0.05);
+    this.speed = random(0.02, 0.1);
   }
   update(irisOffsetX, irisOffsetY) {
-    let currentSpeed = this.baseSpeed * (1 + chaosFactor * 5);
-    this.angle += (noise(frameCount * 0.01, this.x, this.y) - 0.5) * currentSpeed;
-    this.distance = constrain(this.distance + random(-1, 1) * chaosFactor, 0, irisRadius - this.r);
+    this.angle += (noise(this.x * 0.01, this.y * 0.01, frameCount * 0.01) - 0.5) * this.speed * (1 + chaosFactor * 2);
+    this.distance = constrain(
+      this.distance + random(-2, 2) * chaosFactor,
+      0,
+      irisRadius - this.r
+    );
     this.x = eyeCenterX + irisOffsetX + cos(this.angle) * this.distance;
     this.y = eyeCenterY + irisOffsetY + sin(this.angle) * this.distance;
+    this.x += random(-1, 1) * chaosFactor;
+    this.y += random(-1, 1) * chaosFactor;
   }
   display() {
     fill(0);
@@ -177,6 +216,8 @@ class Antenna {
     this.beamSpeed = 0.1;
     this.maxBeams = 3;
     this.beams = [];
+    this.targetX = this.baseX + this.baseSize / 2;
+    this.targetY = this.baseY + this.baseSize / 2;
   }
   draw() {
     fill('gray');
@@ -201,27 +242,32 @@ class Antenna {
   attach() {
     if (this.isAnimating) return;
     this.isAnimating = true;
-    const targetX = this.isAttached ? this.baseX + this.baseSize / 2 : this.contactX;
-    const targetY = this.isAttached ? this.baseY + this.baseSize / 2 : this.contactY;
+    if (!this.isAttached || isRouterOn) {
+      this.targetX = this.contactX;
+      this.targetY = this.contactY;
+    } else {
+      this.targetX = this.baseX + this.baseSize / 2;
+      this.targetY = this.baseY + this.baseSize / 2;
+    }
     const animate = () => {
-        const dx = targetX - this.wireEndX;
-        const dy = targetY - this.wireEndY;
-        const distance = dist(this.wireEndX, this.wireEndY, targetX, targetY);
-        if (distance > 1) {
-            this.wireEndX += dx * 0.1;
-            this.wireEndY += dy * 0.1;
-        } else {
-            this.wireEndX = targetX;
-            this.wireEndY = targetY;
-            this.isAttached = !this.isAttached;
-            this.isAnimating = false;
-        }
+      const dx = this.targetX - this.wireEndX;
+      const dy = this.targetY - this.wireEndY;
+      const distance = dist(this.wireEndX, this.wireEndY, this.targetX, this.targetY);
+      if (distance > 1) {
+        this.wireEndX += dx * 0.1;
+        this.wireEndY += dy * 0.1;
+      } else {
+        this.wireEndX = this.targetX;
+        this.wireEndY = this.targetY;
+        this.isAttached = !this.isAttached;
+        this.isAnimating = false;
+      }
     };
     const animationInterval = setInterval(() => {
-        animate();
-        if (!this.isAnimating) {
-            clearInterval(animationInterval);
-        }
+      animate();
+      if (!this.isAnimating) {
+        clearInterval(animationInterval);
+      }
     }, 16);
   }
   isPointInside(x, y) {
@@ -236,30 +282,58 @@ class Antenna {
       this.beams.push({ target: target, progress: 0 });
     }
   }
+  update() {
+    if (isRouterOn) {
+      this.isAttached = true;
+      this.attachedX = routerX;
+      this.attachedY = routerY;
+      this.x = lerp(this.x, this.attachedX, 0.1);
+      this.y = lerp(this.y, this.attachedY, 0.1);
+    } else {
+      this.isAttached = false;
+    }
+
+  }
 }
 function updateChaosFactor() {
   let attachedAntennas = antennas.filter(a => a.isAttached).length;
   chaosFactor = map(attachedAntennas, 0, antennas.length, 0, maxChaosFactor);
 }
 function updatePupils() {
-  pupilCircles = pupilCircles.filter(p => p.r >= minPupilSize);
-  let targetPupilCount = map(chaosFactor, 0, 1, 1, maxPupilCount);
-  if (pupilCircles.length < targetPupilCount && random() < 0.1 * chaosFactor) {
-    let pupilToSplit = random(pupilCircles);
-    if (pupilToSplit.r > minPupilSize * 2) {
-      let newSize = pupilToSplit.r * 0.7;
-      pupilToSplit.r = newSize;
-      pupilCircles.push(new PupilCircle(pupilToSplit.x, pupilToSplit.y, newSize, random(TWO_PI), random(irisRadius - newSize)));
+  let attachedAntennas = antennas.filter(a => a.isAttached).length;
+  let targetPupilCount = map(attachedAntennas, 0, antennas.length, 1, maxPupilCount);
+  targetPupilCount = Math.round(targetPupilCount);
+  while (pupilCircles.length < targetPupilCount) {
+    let largestPupil = pupilCircles.reduce((a, b) => a.r > b.r ? a : b);
+    if (largestPupil.r > minPupilSize * 1.5) { 
+      let newSize = largestPupil.r * 0.6; 
+      largestPupil.r = newSize;
+      for (let i = 0; i < 2; i++) { 
+        pupilCircles.push(new PupilCircle(
+          largestPupil.x + random(-15, 15),
+          largestPupil.y + random(-15, 15),
+          newSize,
+          random(TWO_PI),
+          random(irisRadius - newSize)
+        ));
+      }
+    } else {
+      break;
     }
-  } else if (pupilCircles.length > targetPupilCount && random() < 0.1) {
-    let pupil1 = random(pupilCircles);
-    let pupil2 = random(pupilCircles.filter(p => p !== pupil1));
-    let newSize = min(sqrt(pupil1.r * pupil1.r + pupil2.r * pupil2.r), maxPupilSize);
-    pupil1.r = newSize;
-    pupilCircles = pupilCircles.filter(p => p !== pupil2);
   }
+  while (pupilCircles.length > targetPupilCount && pupilCircles.length > 1) {
+    let smallestPupils = pupilCircles.sort((a, b) => a.r - b.r).slice(0, 2);
+    let newSize = min(sqrt(smallestPupils[0].r * smallestPupils[0].r + smallestPupils[1].r * smallestPupils[1].r), maxPupilSize);
+    smallestPupils[0].r = newSize;
+    smallestPupils[0].x = (smallestPupils[0].x + smallestPupils[1].x) / 2;
+    smallestPupils[0].y = (smallestPupils[0].y + smallestPupils[1].y) / 2;
+    pupilCircles = pupilCircles.filter(p => p !== smallestPupils[1]);
+  }
+  pupilCircles.forEach(p => {
+    p.r = constrain(p.r, minPupilSize, maxPupilSize);
+  });
   if (pupilCircles.length === 0) {
-    pupilCircles.push(new PupilCircle(eyeCenterX, eyeCenterY, 25, 0, 0));
+    pupilCircles.push(new PupilCircle(eyeCenterX, eyeCenterY, 15, 0, 0));
   }
 }
 function drawServerRoomBackground() {
@@ -270,5 +344,21 @@ function drawServerRoomBackground() {
     let thickness = random(3, 8);
     strokeWeight(thickness);
     line(x + offset, 0, x + offset, height);
+  }
+}
+function drawRouterSwitch() {
+  let switchX = routerX + routerWidth - 50; 
+  let switchY = routerY + 20;
+  let switchWidth = 30;
+  let switchHeight = 15;
+  fill(20, 20, 20);
+  stroke(0);
+  rect(switchX, switchY, switchWidth, switchHeight, 3);
+  if (isRouterOn) {
+    fill(0, 255, 0);
+    rect(switchX + switchWidth / 2, switchY, switchWidth / 2, switchHeight, 0, 3, 3, 0);
+  } else {
+    fill(255, 0, 0);
+    rect(switchX, switchY, switchWidth / 2, switchHeight, 3, 0, 0, 3);
   }
 }
