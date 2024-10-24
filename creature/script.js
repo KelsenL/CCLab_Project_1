@@ -52,7 +52,6 @@ function drawRouter() {
     let ledSize = 10;
     ellipse(routerX + 30 + i * 30, routerY + 20, ledSize);
   }
-  drawRouterSwitch();
   pop();
 }
 function drawEye() {
@@ -132,7 +131,7 @@ function drawAntennas(){
         let targetAntenna;
         do {
           targetAntenna = random(attachedAntennas);
-        } while (targetAntenna === sourceAntenna);
+        } while (targetAntenna === sourceAntenna); //this makes sure that the source antenna and target antenna are not the same, otherwise it will keep looping
         sourceAntenna.addBeam(targetAntenna);
       }
     }
@@ -151,7 +150,7 @@ function mousePressed() {
   }
   antennas.forEach(a => {
     if (a.isPointInside(mouseX, mouseY)) {
-      a.attach();
+      a.toggleAttach();
       updateChaosFactor(); 
     }
   });
@@ -159,9 +158,9 @@ function mousePressed() {
 function updateAntennaConnections() {
   antennas.forEach(antenna => {
     if (isRouterOn && !antenna.isAttached) {
-      antenna.attach();
+      antenna.toggleAttach();
     } else if (!isRouterOn && antenna.isAttached) {
-      antenna.attach();
+      antenna.toggleAttach();
     }
   });
   updateChaosFactor();
@@ -239,7 +238,7 @@ class Antenna {
       }
     }
   }
-  attach() {
+  toggleAttach() {
     if (this.isAnimating) return;
     this.isAnimating = true;
     if (!this.isAttached || isRouterOn) {
@@ -304,7 +303,7 @@ function updatePupils() {
   let targetPupilCount = map(attachedAntennas, 0, antennas.length, 1, maxPupilCount);
   targetPupilCount = Math.round(targetPupilCount);
   while (pupilCircles.length < targetPupilCount) {
-    let largestPupil = pupilCircles.reduce((a, b) => a.r > b.r ? a : b);
+    let largestPupil = pupilCircles.reduce((a, b) => a.r > b.r ? a : b);//the reason I write this is because I know reduce() will return the first element that satisfies the condition
     if (largestPupil.r > minPupilSize * 1.5) { 
       let newSize = largestPupil.r * 0.6; 
       largestPupil.r = newSize;
@@ -322,7 +321,7 @@ function updatePupils() {
     }
   }
   while (pupilCircles.length > targetPupilCount && pupilCircles.length > 1) {
-    let smallestPupils = pupilCircles.sort((a, b) => a.r - b.r).slice(0, 2);
+    let smallestPupils = pupilCircles.sort((a, b) => a.r - b.r).slice(0, 2);//the reason I write this is because I know sort() sort elements based on the return value of comparions
     let newSize = min(sqrt(smallestPupils[0].r * smallestPupils[0].r + smallestPupils[1].r * smallestPupils[1].r), maxPupilSize);
     smallestPupils[0].r = newSize;
     smallestPupils[0].x = (smallestPupils[0].x + smallestPupils[1].x) / 2;
