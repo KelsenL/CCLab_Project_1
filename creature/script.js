@@ -1,3 +1,6 @@
+//This version is the updated version after getting feedback from presentation day
+//I use a lot of arrow functions and short if statement to make the code more concise and readable
+//for more advanced grammars, I've added comments to explain some of the code
 let eyeRadius = 150;
 let eyeCenterX, eyeCenterY;
 let irisRadius = 50;
@@ -6,14 +9,11 @@ let maxChaosFactor = 2;
 let pupilCircles = [];
 let splitThreshold = 15;
 let splitSpeed = 0.01;
-let maxMatters = 200;
 let routerWidth, routerHeight, routerX, routerY;
-let antennas = [];
+let servers = [];
 let minPupilSize = 3;
 let maxPupilSize = 20;
 let maxPupilCount = 20;
-const WIRE_COUNT = 50;
-const WIRE_COLOR = '#4a4a4a';
 let isRouterOn = false; 
 function setup() {
   let canvas = createCanvas(800, 500);
@@ -26,18 +26,17 @@ function setup() {
   routerHeight = height * 0.6;
   routerX = (width - routerWidth) / 2;
   routerY = (height - routerHeight) / 2;
-  createAntennas();
+  createServers();
   pupilCircles.push(new PupilCircle(eyeCenterX, eyeCenterY, 25, 0, 0));
-  updateAntennaConnections();
+  updateServerConnections();
 }
 function draw() {
-  background(220); 
   drawServerRoomBackground();
   updateChaosFactor();
   updatePupils();
   drawRouter();
   drawEye();
-  drawAntennas();
+  drawServers();
   drawRouterSwitch();
 }
 function drawRouter() {
@@ -94,46 +93,37 @@ function drawEye() {
   stroke(150, 170, 190);
   strokeWeight(2);
   ellipse(irisX, irisY, irisRadius * 2);
-  pupilCircles.forEach(pc => { 
+  pupilCircles.forEach(pc => { //this is the first forEach loop I use, which is a loop that iterates over each element in an array
     pc.update(irisOffsetX, irisOffsetY); 
     pc.display(); 
   });
   pop();
 }
-function createAntennas() {
-  antennas = []; 
-  let antennaCount = 4;
-  let antennaSize = min(width, height) * 0.05;
-  for (let i = 0; i < antennaCount; i++) {
-    let x = width * (i + 1) / (antennaCount + 1);
-    antennas.push(new Antenna(x - antennaSize / 2, 0, x, routerY, antennaSize));
-  }
-  for (let i = 0; i < antennaCount; i++) {
-    let x = width * (i + 1) / (antennaCount + 1);
-    antennas.push(new Antenna(x - antennaSize / 2, height - antennaSize, x, routerY + routerHeight, antennaSize));
-  }
-  for (let i = 0; i < antennaCount; i++) {
-    let y = height * (i + 1) / (antennaCount + 1);
-    antennas.push(new Antenna(0, y - antennaSize / 2, routerX, y, antennaSize));
-  }
-  for (let i = 0; i < antennaCount; i++) {
-    let y = height * (i + 1) / (antennaCount + 1);
-    antennas.push(new Antenna(width - antennaSize, y - antennaSize / 2, routerX + routerWidth, y, antennaSize));
+function createServers() {
+  servers = []; 
+  let serverCount = 4;
+  let serverSize = min(width, height) * 0.05;
+  for (let i = 0; i < serverCount; i++) {
+    let x = width * (i + 1) / (serverCount + 1);
+    let y = height * (i + 1) / (serverCount + 1);
+    servers.push(new Server(x - serverSize / 2, 0, x, routerY, serverSize));
+    servers.push(new Server(x - serverSize / 2, height - serverSize, x, routerY + routerHeight, serverSize));
+    servers.push(new Server(0, y - serverSize / 2, routerX, y, serverSize));
+    servers.push(new Server(width - serverSize, y - serverSize / 2, routerX + routerWidth, y, serverSize));
   }
 }
-function drawAntennas(){
-  antennas.forEach(a => a.draw());
-  if (frameCount % 10 === 0) {
-    let attachedAntennas = antennas.filter(a => a.isAttached);
-    if (attachedAntennas.length >= 2) {
-      for (let i = 0; i < 3; i++) {
-        let sourceAntenna = random(attachedAntennas);
-        let targetAntenna;
-        do {
-          targetAntenna = random(attachedAntennas);
-        } while (targetAntenna === sourceAntenna); //this makes sure that the source antenna and target antenna are not the same, otherwise it will keep looping
-        sourceAntenna.addBeam(targetAntenna);
-      }
+function drawServers(){
+  servers.forEach(s => s.draw());
+  let frameInterval = Math.round(map(chaosFactor, 0, maxChaosFactor, 60, 10)  ); 
+  if (frameCount % frameInterval === 0) {
+    let attachedServers = servers.filter(s => s.isAttached);
+    if (attachedServers.length >= 2) {
+      let sourceServer = random(attachedServers);
+      let targetServer;
+      do {//this makes sure that the targetServer always is assigned a variable
+        targetServer = random(attachedServers);
+      } while (targetServer === sourceServer);//if targetServer is sourceServer, then do not add beam
+      sourceServer.addBeam(targetServer);//if targetServer is not sourceServer, then add beam
     }
   }
 }
@@ -145,22 +135,22 @@ function mousePressed() {
   if (mouseX > switchX && mouseX < switchX + switchWidth &&
       mouseY > switchY && mouseY < switchY + switchHeight) {
     isRouterOn = !isRouterOn;
-    updateAntennaConnections();
+    updateServerConnections();
     return; 
   }
-  antennas.forEach(a => {
-    if (a.isPointInside(mouseX, mouseY)) {
-      a.toggleAttach();
+  servers.forEach(s => {
+    if (s.isPointInside(mouseX, mouseY)) {
+      s.toggleAttach();
       updateChaosFactor(); 
     }
   });
 }
-function updateAntennaConnections() {
-  antennas.forEach(antenna => {
-    if (isRouterOn && !antenna.isAttached) {
-      antenna.toggleAttach();
-    } else if (!isRouterOn && antenna.isAttached) {
-      antenna.toggleAttach();
+function updateServerConnections() {
+  servers.forEach(server => {
+    if (isRouterOn && !server.isAttached) {
+      server.toggleAttach();
+    } else if (!isRouterOn && server.isAttached) {
+      server.toggleAttach();
     }
   });
   updateChaosFactor();
@@ -196,114 +186,77 @@ class PupilCircle {
     ellipse(this.x - this.r * 0.2, this.y - this.r * 0.2, this.r * 0.5);
   }
 }
-class Antenna {
+class Server {
   constructor(x, y, routerX, routerY, size) {
     this.baseX = x;
     this.baseY = y;
-    this.baseSize = size;
-    this.contactRadius = size * 0.25;
+    this.size = size;
     this.contactX = routerX;
     this.contactY = routerY;
-    this.wireStartX = this.baseX + this.baseSize / 2;
-    this.wireStartY = this.baseY + this.baseSize / 2;
-    this.wireEndX = this.wireStartX;
-    this.wireEndY = this.wireStartY;
+    this.wireEndX = x + size / 2;
+    this.wireEndY = y + size / 2;
     this.isAttached = false;
-    this.isAnimating = false;
-    this.beamTarget = null;
-    this.beamProgress = 0;
-    this.beamSpeed = 0.1;
-    this.maxBeams = 3;
-    this.beams = [];
-    this.targetX = this.baseX + this.baseSize / 2;
-    this.targetY = this.baseY + this.baseSize / 2;
+    this.beams = [];  
+  }
+
+  addBeam(targetServer) {
+    if (this.beams.length < 3) {
+      this.beams.push([
+        targetServer.wireEndX,  
+        targetServer.wireEndY, 
+        0                       
+      ]);
+    }
   }
   draw() {
+    const targetX = this.isAttached ? this.contactX : this.baseX + this.size / 2;
+    const targetY = this.isAttached ? this.contactY : this.baseY + this.size / 2;
+    this.wireEndX = lerp(this.wireEndX, targetX, 0.1);
+    this.wireEndY = lerp(this.wireEndY, targetY, 0.1);
     fill('gray');
-    rect(this.baseX, this.baseY, this.baseSize, this.baseSize);
+    rect(this.baseX, this.baseY, this.size, this.size);
     stroke('black');
-    line(this.wireStartX, this.wireStartY, this.wireEndX, this.wireEndY);
+    line(this.baseX + this.size / 2, this.baseY + this.size / 2, this.wireEndX, this.wireEndY);
     fill(this.isAttached ? 'green' : 'red');
-    ellipse(this.wireEndX, this.wireEndY, this.contactRadius * 2);
+    ellipse(this.wireEndX, this.wireEndY, this.size * 0.5);
     for (let i = this.beams.length - 1; i >= 0; i--) {
-      let beam = this.beams[i];
-      let beamX = lerp(this.wireEndX, beam.target.wireEndX, beam.progress);
-      let beamY = lerp(this.wireEndY, beam.target.wireEndY, beam.progress);
-      fill(0, 255, 0, 150);
-      noStroke();
-      ellipse(beamX, beamY, 5, 5);
-      beam.progress += this.beamSpeed;
-      if (beam.progress >= 1) {
+      let [targetX, targetY, progress] = this.beams[i];//destructuring assignment
+      let beamX = lerp(this.wireEndX, targetX, progress);
+      let beamY = lerp(this.wireEndY, targetY, progress);
+      for (let j = 0; j < 6; j++) {
+        let trailProgress = progress - (j * 0.05);
+        if (trailProgress > 0) {
+          let trailX = lerp(this.wireEndX, targetX, trailProgress);
+          let trailY = lerp(this.wireEndY, targetY, trailProgress);
+          let alpha = map(j, 0, 6, 150, 0);
+          noStroke();
+          fill(0, 255, 0, alpha);
+          ellipse(trailX, trailY, 5 - j * 0.5);
+        }
+      }
+      this.beams[i][2] += map(chaosFactor, 0, maxChaosFactor, 0.02, 0.08);
+      if (this.beams[i][2] >= 1) {
         this.beams.splice(i, 1);
       }
     }
   }
   toggleAttach() {
-    if (this.isAnimating) return;
-    this.isAnimating = true;
-    if (!this.isAttached || isRouterOn) {
-      this.targetX = this.contactX;
-      this.targetY = this.contactY;
-    } else {
-      this.targetX = this.baseX + this.baseSize / 2;
-      this.targetY = this.baseY + this.baseSize / 2;
-    }
-    const animate = () => {
-      const dx = this.targetX - this.wireEndX;
-      const dy = this.targetY - this.wireEndY;
-      const distance = dist(this.wireEndX, this.wireEndY, this.targetX, this.targetY);
-      if (distance > 1) {
-        this.wireEndX += dx * 0.1;
-        this.wireEndY += dy * 0.1;
-      } else {
-        this.wireEndX = this.targetX;
-        this.wireEndY = this.targetY;
-        this.isAttached = !this.isAttached;
-        this.isAnimating = false;
-      }
-    };
-    const animationInterval = setInterval(() => {
-      animate();
-      if (!this.isAnimating) {
-        clearInterval(animationInterval);
-      }
-    }, 16);
+    this.isAttached = !this.isAttached;
   }
   isPointInside(x, y) {
-    return dist(x, y, this.wireEndX, this.wireEndY) <= this.contactRadius;
-  }
-  setBeamTarget(target) {
-    this.beamTarget = target;
-    this.beamProgress = 0;
-  }
-  addBeam(target) {
-    if (this.beams.length < this.maxBeams) {
-      this.beams.push({ target: target, progress: 0 });
-    }
-  }
-  update() {
-    if (isRouterOn) {
-      this.isAttached = true;
-      this.attachedX = routerX;
-      this.attachedY = routerY;
-      this.x = lerp(this.x, this.attachedX, 0.1);
-      this.y = lerp(this.y, this.attachedY, 0.1);
-    } else {
-      this.isAttached = false;
-    }
-
+    return dist(x, y, this.wireEndX, this.wireEndY) <= this.size * 0.25;
   }
 }
 function updateChaosFactor() {
-  let attachedAntennas = antennas.filter(a => a.isAttached).length;
-  chaosFactor = map(attachedAntennas, 0, antennas.length, 0, maxChaosFactor);
+  let attachedServers = servers.filter(s => s.isAttached).length;
+  chaosFactor = map(attachedServers, 0, servers.length, 0, maxChaosFactor);
 }
 function updatePupils() {
-  let attachedAntennas = antennas.filter(a => a.isAttached).length;
-  let targetPupilCount = map(attachedAntennas, 0, antennas.length, 1, maxPupilCount);
+  let attachedServers = servers.filter(s => s.isAttached).length;
+  let targetPupilCount = map(attachedServers, 0, servers.length, 1, maxPupilCount);
   targetPupilCount = Math.round(targetPupilCount);
   while (pupilCircles.length < targetPupilCount) {
-    let largestPupil = pupilCircles.reduce((a, b) => a.r > b.r ? a : b);//the reason I write this is because I know reduce() will return the first element that satisfies the condition
+    let largestPupil = pupilCircles.reduce((a, b) => a.r > b.r ? a : b);//the reason I write this is because I know reduce() functions as accumulator, which will return the first element that satisfies the condition
     if (largestPupil.r > minPupilSize * 1.5) { 
       let newSize = largestPupil.r * 0.6; 
       largestPupil.r = newSize;
@@ -336,6 +289,9 @@ function updatePupils() {
   }
 }
 function drawServerRoomBackground() {
+  const WIRE_COUNT = 50;
+  const WIRE_COLOR = '#4a4a4a';
+  background(220); 
   stroke(WIRE_COLOR);
   for (let i = 0; i < WIRE_COUNT; i++) {
     let x = map(i, 0, WIRE_COUNT - 1, 0, width);
@@ -361,3 +317,4 @@ function drawRouterSwitch() {
     rect(switchX, switchY, switchWidth / 2, switchHeight, 3, 0, 0, 3);
   }
 }
+
